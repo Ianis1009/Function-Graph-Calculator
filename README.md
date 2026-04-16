@@ -91,21 +91,7 @@ This is used for interactive point-based tangent visualization.
 
 ---
 
-# 2. System Architecture
-project/
-│
-├── app.py # Flask backend
-├── compute.c # optional numerical module (C)
-├── templates/
-│ └── index.html # frontend interface
-├── static/
-│ └── grafic.png # exported plot image
-└── README.md
-
-
----
-
-# 3. Backend (Python / Flask)
+# 2. Backend (Python / Flask)
 
 ## Technologies
 
@@ -129,7 +115,7 @@ The backend:
 
 ---
 
-# 4. Optional C Module
+# 3. Optional C Module
 
 The C component is designed for performance-oriented numerical computation.
 
@@ -149,7 +135,7 @@ This module can be integrated via Python bindings or system calls.
 
 ---
 
-# 5. Frontend (HTML / JavaScript)
+# 4. Frontend (HTML / JavaScript)
 
 ## Technologies
 
@@ -173,7 +159,7 @@ This module can be integrated via Python bindings or system calls.
 
 ---
 
-# 6. Visualization Features
+# 5. Visualization Features
 
 The graph includes:
 
