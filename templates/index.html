@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Graph Calculator</title>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+<style>
+body {
+    margin:0;
+    font-family:Segoe UI;
+    background:linear-gradient(135deg,#0f0f1a,#1c1c2e);
+    color:white;
+}
+
+
+.container {
+    display:flex;
+    height:100vh;
+}
+
+.sidebar {
+    width:340px;
+    padding:20px;
+    background:rgba(0,0,0,0.4);
+    backdrop-filter:blur(10px);
+}
+
+
+input {
+    width:100%;
+    padding:10px;
+    margin-bottom:10px;
+    border:none;
+    border-radius:8px;
+    background:#222;
+    color:white;
+}
+
+input:focus {
+    outline:none;
+    box-shadow:0 0 10px rgba(0,255,200,0.4);
+}
+
+button {
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    border:none;
+    border-radius:8px;
+    background:linear-gradient(90deg,#00ffc8,#00aaff);
+    font-weight:bold;
+    cursor:pointer;
+    position:relative;
+    overflow:hidden;
+    transition:0.25s ease;
+}
+
+button:hover {
+    transform:translateY(-2px) scale(1.03);
+    box-shadow:0 0 18px rgba(0,255,200,0.6),
+               0 0 30px rgba(0,170,255,0.3);
+}
+
+
+button::after {
+    content:"";
+    position:absolute;
+    width:0;
+    height:0;
+    background:rgba(255,255,255,0.4);
+    border-radius:50%;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    transition:0.4s;
+}
+
+button:active::after {
+    width:200px;
+    height:200px;
+    opacity:0;
+}
+
+
+.math-box {
+    margin-top:20px;
+    padding:15px;
+    background:rgba(255,255,255,0.05);
+    border-radius:10px;
+    font-size:15px;
+}
+
+
+#graph {
+    flex:1;
+}
+
+
+#errorBox {
+    position:fixed;
+    top:20px;
+    right:20px;
+    background:linear-gradient(90deg,#ff4d4d,#ff0066);
+    padding:15px 20px;
+    border-radius:10px;
+    color:white;
+    font-weight:bold;
+    box-shadow:0 0 20px rgba(255,0,100,0.5);
+    display:none;
+    animation:fadeIn 0.1s ease;
+    z-index:999;
+}
+
+
+@keyframes fadeIn {
+    from {opacity:0; transform:translateY(-10px);}
+    to {opacity:1; transform:translateY(0);}
+}
+
+
+.hints {
+    position:absolute;
+    bottom:10px;
+    left:360px;
+    font-size:12px;
+    background:rgba(0,0,0,0.5);
+    padding:10px;
+    border-radius:10px;
+}
+</style>
+
+</head>
+
+<body>
+
+
+<div id="errorBox"></div>
+
+<div class="container">
+
+<div class="sidebar">
+
+<h2>Graph Calculator</h2>
+
+<input id="func" placeholder="sin(x)+x**2 (function)">
+<input id="a" placeholder="-5 (left limit)">
+<input id="b" placeholder="5 (right limit)">
+<input id="step" placeholder="0.05 (step)">
+
+<button onclick="compute()">Calculează</button>
+<button onclick="save()">Salvează PNG</button>
+
+<div class="math-box">
+<div id="fx"></div>
+<div id="dfx"></div>
+
+<hr>
+
+<div id="critice"></div>
+<div id="monotonie"></div>
+<div id="integral"></div>
+</div>
+
+</div>
+
+<div id="graph"></div>
+
+</div>
+
+<div class="hints">
+T - tangentă<br>
+Z - reset zoom<br>
+C - recompute
+</div>
+
+
+
+<script>
+
+let currentData = null;
+let errorTimeout;
+function showError(msg) {
+    let box = document.getElementById("errorBox");
+
+    clearTimeout(errorTimeout);
+
+    box.innerText = msg;
+    box.style.display = "block";
+
+    errorTimeout = setTimeout(() => {
+        box.style.display = "none";
+    }, 3000);
+}
+
+function compute() {
+
+fetch("/compute", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+        function:document.getElementById("func").value,
+        a:document.getElementById("a").value,
+        b:document.getElementById("b").value,
+        step:document.getElementById("step").value
+    })
+})
+
+.then(async r => {
+    let data;
+
+    try {
+        data = await r.json();
+    } catch {
+        showError("Eroare : Date introduse gresit!");
+        return;
+    }
+
+    if (!r.ok) {
+        showError(data.message);
+        return;
+    }
+
+    return data;
+})
+
+.then(data => {
+
+    if (!data) 
+        return;
+
+    let traces = [
+        {
+            x:data.x,
+            y:data.f,
+            type:"scatter",
+            mode:"lines",
+            name:"f(x)",
+            line:{color:"#00ffc8",width:3},
+            fill:"tozeroy",
+            fillcolor:"rgba(0,255,200,0.15)"
+        },
+        {
+            x:data.x,
+            y:data.df,
+            type:"scatter",
+            name:"f'(x)",
+            line:{color:"#ff4d4d",width:3}
+        },
+        {
+            x:data.max_points.map(p=>p[0]),
+            y:data.max_points.map(p=>p[1]),
+            mode:"markers",
+            name:"Maxime",
+            marker:{color:"red",size:10}
+        },
+        {
+            x:data.min_points.map(p=>p[0]),
+            y:data.min_points.map(p=>p[1]),
+            mode:"markers",
+            name:"Minime",
+            marker:{color:"blue",size:10}
+        }
+    ];
+
+    Plotly.newPlot("graph", traces, {
+        paper_bgcolor:"#0f0f1a",
+        plot_bgcolor:"#0f0f1a",
+        font:{color:"#fff"},
+        hovermode:"x unified"
+    });
+
+    document.getElementById("fx").innerHTML =
+        "\\( f(x) = " + data.func + " \\)";
+
+    document.getElementById("dfx").innerHTML =
+        "\\( f'(x) = " + data.deriv + " \\)";
+
+    document.getElementById("critice").innerHTML =
+        "Maxime: " + data.max_points.length +
+        "<br>Minime: " + data.min_points.length;
+
+    let mono = "";
+    data.monotonie.forEach(m => mono += m + "<br>");
+    document.getElementById("monotonie").innerHTML = mono;
+
+    document.getElementById("integral").innerHTML =
+        "∫ f(x) dx ≈ " + data.integral.toFixed(4);
+
+    MathJax.typeset();
+});
+}
+
+
+function save(){
+    fetch("/save",{method:"POST"});
+}
+
+document.addEventListener("keydown", e=>{
+    if(e.key==="z"){
+        Plotly.relayout("graph",{xaxis:{autorange:true},yaxis:{autorange:true}});
+    }
+    if(e.key==="c"){
+        compute();
+    }
+});
+
+</script>
+
+</body>
+</html>
